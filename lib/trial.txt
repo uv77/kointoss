@@ -1,0 +1,405 @@
+// ignore_for_file: prefer_const_constructors, avoid_print
+
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'home_page.dart';
+
+class SignupPage extends StatefulWidget {
+  @override
+  _SignupPageState createState() => _SignupPageState();
+}
+
+class _SignupPageState extends State<SignupPage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _phoneNumberController = TextEditingController();
+  final TextEditingController _otpController = TextEditingController();
+
+  late String _verificationId;
+  bool _isOtpSent = false;
+
+  Future<void> _signup() async {
+    if (_emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _phoneNumberController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill in all the fields'),
+        ),
+      );
+      return;
+    }
+
+    if (_otpController.text.isEmpty || !_isOtpSent) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please verify your phone number first'),
+        ),
+      );
+      return;
+    }
+
+    try {
+        PhoneAuthCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Signed up user with email: ${userCredential.user!.email} and phone number: ${userCredential.user!.phoneNumber}'),
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(user: userCredential.user),
+        ),
+      );
+    } catch (e) {
+      print('Failed to sign up: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to sign up: $e'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _verifyPhone() async {
+    if (_phoneNumberController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter a phone number'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: '+91${_phoneNumberController.text}',
+        // timeout: Duration(seconds: 300),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          await _auth.signInWithCredential(credential);
+          print('Phone number automatically verified');
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          print('Phone number verification failed: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Phone number verification failed: $e'),
+            ),
+          );
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _verificationId = verificationId;
+          setState(() {
+            _isOtpSent = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('OTP is Sent!!'),
+            ),
+          );
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+      );
+    } catch (e) {
+      print('Failed to verify phone number: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to verify phone number: $e'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _submitOTP() async {
+    if (_otpController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter the OTP'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId,
+        smsCode: _otpController.text,
+      );
+      await _auth.signInWithCredential(credential);
+
+      // Get the currently signed-in user
+      User? currentUser = _auth.currentUser;
+
+      if (currentUser != null) {
+        // Link the phone number to the user
+        await currentUser.linkWithCredential(credential);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Phone number linked successfully'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to link phone number'),
+          ),
+        );
+      }
+
+      // print('Phone number manually verified');
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(
+      //     content: Text('Phone number otp verified'),
+      //   ),
+      // );
+    } catch (e) {
+      print('Failed to verify OTP: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to verify OTP: $e'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _resendOTP() async {
+    if (_phoneNumberController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter a phone number'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: '+91${_phoneNumberController.text}',
+        // timeout: Duration(seconds: 300),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          await _auth.signInWithCredential(credential);
+          print('Phone number automatically verified');
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          print('Phone number verification failed: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Phone number verification failed: $e'),
+            ),
+          );
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _verificationId = verificationId;
+          setState(() {
+            _isOtpSent = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('OTP resent'),
+            ),
+          );
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+      );
+    } catch (e) {
+      print('Failed to resend OTP: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to resend OTP: $e'),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Sign Up'),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(labelText: 'Email'),
+              ),
+              SizedBox(height: 12),
+              TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(labelText: 'Password'),
+                obscureText: true,
+              ),
+              SizedBox(height: 12),
+              TextField(
+                controller: _phoneNumberController,
+                decoration: InputDecoration(labelText: 'Phone Number'),
+                keyboardType: TextInputType.phone,
+              ),
+              SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _isOtpSent ? null : _verifyPhone,
+                child: Text(_isOtpSent ? 'OTP Sent' : 'Verify Phone Number'),
+              ),
+              SizedBox(height: 12),
+              TextField(
+                controller: _otpController,
+                decoration: InputDecoration(labelText: 'OTP'),
+                keyboardType: TextInputType.number,
+                enabled: _isOtpSent,
+              ),
+              SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _isOtpSent ? _submitOTP : null,
+                child: Text('Submit OTP'),
+              ),
+              SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _isOtpSent ? _resendOTP : null,
+                child: Text('Resend OTP'),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _signup,
+                child: Text('Register '),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+
+.............
+
+
+
+W/System  (21324): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor(21324): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: Error returned from API. code: 403 body: App attestation failed.
+I/flutter (21324): Failed to sign up: [firebase_auth/session-expired] The sms code has expired. Please re-send the verification code to try again.
+W/FirebaseAuth(21324): [SmsRetrieverHelper] Timed out waiting for SMS.
+I/ViewRootImpl@bd5a7e2[MainActivity](21324): ViewPostIme pointer 0
+I/ViewRootImpl@bd5a7e2[MainActivity](21324): ViewPostIme pointer 1
+W/System  (21324): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor(21324): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: Too many attempts.
+I/flutter (21324): Failed to sign up: [firebase_auth/session-expired] The sms code has expired. Please re-send the verification code to try again.
+
+Future<void> _submitOTP() async {
+  if (_otpController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please enter the OTP'),
+      ),
+    );
+    return;
+  }
+
+  try {
+    // Verify the OTP
+    PhoneAuthCredential credential = PhoneAuthProvider.credential(
+      verificationId: _verificationId,
+      smsCode: _otpController.text,
+    );
+    await _auth.signInWithCredential(credential);
+
+    // Get the currently signed-in user
+    User? currentUser = _auth.currentUser;
+
+    if (currentUser != null) {
+      // Create and link the email and password
+      UserCredential emailCredential = await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      await currentUser.linkWithCredential(emailCredential.credential!);
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Phone number and email linked successfully'),
+        ),
+      );
+
+      // Navigate to the home page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(user: currentUser),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to link phone number and email'),
+        ),
+      );
+    }
+  } catch (e) {
+    print('Failed to verify OTP and link phone number and email: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to verify OTP and link phone number and email: $e'),
+      ),
+    );
+  }
+}
+
+.......
+
+
+
+
+
+.....
+
+
+
+I/IMM_LC  (18507): showSoftInput(View,I)
+I/IMM_LC  (18507): ssi() - flag : 0 view : com.example.kointoss reason = SHOW_SOFT_INPUT
+I/IMM_LC  (18507): ssi() view is not EditText
+D/InsetsController(18507): show(ime(), fromIme=true)
+I/IMM_LC  (18507): showSoftInput(View,I)
+I/IMM_LC  (18507): ssi() - flag : 0 view : com.example.kointoss reason = SHOW_SOFT_INPUT
+I/IMM_LC  (18507): ssi() view is not EditText
+D/InsetsController(18507): show(ime(), fromIme=true)
+I/ViewRootImpl@bd5a7e2[MainActivity](18507): ViewPostIme pointer 0
+I/ViewRootImpl@bd5a7e2[MainActivity](18507): ViewPostIme pointer 1
+W/System  (18507): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor(18507): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: Error returned from API. code: 403 body: App attestation failed.
+W/System  (18507): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor(18507): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: Too many attempts.
+D/FirebaseAuth(18507): Notifying id token listeners about user ( w0jO6ugUoQe4rEQBVqxf3DYomKf2 ).
+D/FirebaseAuth(18507): Notifying auth state listeners about user ( w0jO6ugUoQe4rEQBVqxf3DYomKf2 ).
+I/FirebaseAuth(18507): Creating user with vishaluk72@yahoo.com with empty reCAPTCHA token
+W/System  (18507): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor(18507): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: Too many attempts.
+W/System  (18507): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor(18507): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: Too many attempts.
+D/FirebaseAuth(18507): Notifying id token listeners about user ( k2I7J1hiSFVd3qCqCF2bD66pJQ53 ).
+D/FirebaseAuth(18507): Notifying auth state listeners about user ( k2I7J1hiSFVd3qCqCF2bD66pJQ53 ).
+I/flutter (18507): Failed to verify OTP and link phone number and email: Null check operator used on a null value
+W/FirebaseAuth(18507): [SmsRetrieverHelper] Timed out waiting for SMS.
+Application finished.

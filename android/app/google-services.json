@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "592745716214",
+    "project_id": "kointoss",
+    "storage_bucket": "kointoss.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:592745716214:android:a8866fa9da8375d6f8cfd7",
+        "android_client_info": {
+          "package_name": "com.example.kointoss"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBvWKQRM0hBrvmEyC0GGlzMeRx7oDrTUqM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
